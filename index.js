@@ -2,6 +2,8 @@ var express = require('express');
 var app=express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
+var port = process.env.PORT || 3000;
+var usernames = {};
 
 //to host static files to the html ie stylesheets and javascript
 var path = require('path');
@@ -12,23 +14,30 @@ app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
 
-//io socket which on receiving chat message event on server emits chat message event to clients with the message data
+//when connection to a socket is made by a client to the server
 io.on('connection', function(socket){
-	 socket.on('chat message', function(msg){
-    io.emit('chat message', msg);
-  });
+	//take the username from client and store it for use
+	socket.on('adduser', function(username){
+		socket.username = username;
+		usernames[username] = username;
+		// echo globally (all clients) that a person has connected
+		socket.broadcast.emit('user connected', socket.username + ' has connected',"");
+	});
 	
+	//On receiving message from client forward it to all the clients including the sender
+	socket.on('chat message', function(msg){
+		io.emit('chat message', socket.username, msg);
+	});
+	
+	//bradcast message when user disconnects
+	socket.on('disconnect', function(){
+		socket.broadcast.emit('user disconnected',socket.username+ ' has disconnected',"");
+	});
 });
 
 //listening on port 3000
-http.listen(3000, function(){
+http.listen(port, function(){
   console.log('listening on *:3000');
 });
 
-/*console.log('a user connected');
-	socket.on('chat message', function(msg){
-    console.log('message: ' + msg);
-	//function when user disconnects ie closes the window or tab
-	socket.on('disconnect', function(){
-		console.log('user disconnected');*/
     
